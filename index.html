@@ -30,6 +30,20 @@
       height: 100vh;
     }
 
+    .debug-panel {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #ffffff;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      z-index: 1000;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      pointer-events: none;
+    }
+
     .toolbar {
       position: absolute;
       top: 12px;
@@ -113,6 +127,19 @@
       cursor: pointer;
     }
 
+    .search-container {
+      flex: 1 1 160px;
+    }
+
+    .search-container input {
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #ced4da;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+
     /* === Ajustements mobiles === */
     @media (max-width: 600px) {
       .toolbar {
@@ -184,6 +211,11 @@
         white-space: nowrap;
         max-width: 100%;
         box-sizing: border-box;
+      }
+
+      .search-container {
+        flex: 1 1 100%;
+        order: 3;
       }
       
       .modal-box {
@@ -430,12 +462,21 @@
         <option value="es">Español</option>
       </select>
     </div>
+    <div class="search-container">
+      <input
+        id="barrio-search"
+        type="search"
+        placeholder="Rechercher un barrio..."
+        data-i18n-placeholder="search_placeholder"
+      />
+    </div>
     <span class="user-pill">
       <span id="current-user-label" data-i18n="current_user_prefix">Utilisateur:</span>
       <span id="current-user-name"> …</span>
     </span>
   </div>
   <div id="map"></div>
+  <div id="map-debug" class="debug-panel"></div>
 
   <!-- Leaflet JS -->
   <script
@@ -462,7 +503,8 @@
         prompt_message: 'Entrez votre prénom pour collaborer (visible par les autres) :',
         prompt_default: 'Anonyme',
         modal_ok: 'OK',
-        modal_cancel: 'Annuler'
+        modal_cancel: 'Annuler',
+        search_placeholder: 'Rechercher un barrio...'
       },
       es: {
         page_title: 'Mapa de los barrios de Cartagena (Colombia)',
@@ -477,7 +519,8 @@
         prompt_message: 'Introduce tu nombre para colaborar (visible para los demás):',
         prompt_default: 'Anónimo',
         modal_ok: 'OK',
-        modal_cancel: 'Cancelar'
+        modal_cancel: 'Cancelar',
+        search_placeholder: 'Buscar un barrio...'
       }
     };
 
@@ -511,6 +554,14 @@
         const text = t(key);
         if (text) {
           el.textContent = text;
+        }
+      });
+
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const text = t(key);
+        if (text) {
+          el.setAttribute('placeholder', text);
         }
       });
 
@@ -706,8 +757,9 @@
       });
     }
     
-    // 1. Initialisation de la carte centrée sur Carthagène
-    const map = L.map('map').setView([10.3997, -75.5144], 12);
+    // 1. Initialisation de la carte centrée sur Carthagène (centre-ville)
+    const map = L.map('map').setView([10.3856, -75.5186], 13);
+    const debugPanel = document.getElementById('map-debug');
 
     // 2. Fond de carte OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -718,15 +770,38 @@
     // 3. Style des arrondissements
     const DEFAULT_FILL_COLOR = '#4da6ff';
     const DEFAULT_FILL_OPACITY = 0.25;
+    const NORMAL_STROKE_COLOR = '#003366';
+    const NORMAL_STROKE_WEIGHT = 1.5;
+    const HIGHLIGHT_STROKE_COLOR = '#ff8c00';
+    const HIGHLIGHT_STROKE_WEIGHT = 3;
+    const LABEL_ZOOM_LARGE = 11;
+    const LABEL_ZOOM_MEDIUM = 13;
+    const LABEL_ZOOM_SMALL = 15;
 
     function districtStyle() {
       return {
-        color: '#003366',
-        weight: 1.5,
+        color: NORMAL_STROKE_COLOR,
+        weight: NORMAL_STROKE_WEIGHT,
         fillColor: DEFAULT_FILL_COLOR,
         fillOpacity: DEFAULT_FILL_OPACITY
       };
     }
+
+    function updateDebugPanel() {
+      if (!debugPanel) return;
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      debugPanel.textContent =
+        'Zoom: ' +
+        zoom.toFixed(1) +
+        ' | Centre: ' +
+        center.lat.toFixed(4) +
+        ', ' +
+        center.lng.toFixed(4);
+    }
+
+    map.on('moveend zoomend', updateDebugPanel);
+    updateDebugPanel();
 
     // === Sélection des outils & couleur ===
     const toolSelectButton = document.getElementById('tool-select');
@@ -735,6 +810,7 @@
     const colorPicker = document.getElementById('color-picker');
     const currentUserLabel = document.getElementById('current-user-label');
     const currentUserName = document.getElementById('current-user-name');
+    const searchInput = document.getElementById('barrio-search');
 
     let currentUser = translations[currentLang].prompt_default;
     customPrompt(
@@ -777,6 +853,7 @@
 
     let currentMode = 'select';
     let currentColor = colorPicker.value;
+    let currentSearch = '';
 
     function setMode(mode) {
       currentMode = mode;
@@ -803,6 +880,13 @@
       currentColor = e.target.value;
     });
 
+    if (searchInput) {
+      searchInput.addEventListener('input', function(e) {
+        currentSearch = e.target.value || '';
+        applySearchHighlight();
+      });
+    }
+
     // 4. Pour chaque polygone: ajout du label permanent et enregistrement
     function onEachDistrict(feature, layer) {
       const props = feature.properties || {};
@@ -815,10 +899,20 @@
 
       layer.feature.properties.__displayName = name;
 
+      // Détermine une "taille" de barrio à partir de la surface pour gérer l'affichage progressif
+      const rawArea = Number(props.Shape__Area) || 0;
+      let importance = 'small';
+      if (rawArea >= 800000) {
+        importance = 'large';
+      } else if (rawArea >= 200000) {
+        importance = 'medium';
+      }
+      layer.feature.properties.__importance = importance;
+
       layer.bindTooltip(name, {
         permanent: true,
         direction: 'center',
-        className: 'district-label'
+        className: 'district-label district-label-' + importance
       });
 
       const code =
@@ -885,6 +979,8 @@
       layer.feature.properties.__lastUser =
         typeof userOverride !== 'undefined' ? userOverride : record ? record.user_name : null;
       updatePopupContent(layer);
+      // Réapplique le highlight éventuel après le changement de couleur
+      applySearchHighlightForLayer(layer);
     }
 
     async function saveColorChange(layer, color) {
@@ -992,6 +1088,54 @@
         });
     }
 
+    // Affiche progressivement les labels des barrios selon le niveau de zoom et leur importance
+    function updateDistrictLabelVisibility() {
+      const zoom = map.getZoom();
+      barrioLayers.forEach(function(layer) {
+        const importance = layer.feature.properties.__importance || 'small';
+        const tooltip = layer.getTooltip && layer.getTooltip();
+        if (!tooltip || !tooltip.getElement) return;
+        const el = tooltip.getElement();
+        if (!el) return;
+
+        let show = false;
+        if (importance === 'large') {
+          show = zoom >= LABEL_ZOOM_LARGE;
+        } else if (importance === 'medium') {
+          show = zoom >= LABEL_ZOOM_MEDIUM;
+        } else {
+          show = zoom >= LABEL_ZOOM_SMALL;
+        }
+        el.style.display = show ? '' : 'none';
+      });
+    }
+
+    function applySearchHighlightForLayer(layer) {
+      if (!layer) return;
+      const name = (layer.feature.properties.__displayName || '').toLowerCase();
+      const query = currentSearch.trim().toLowerCase();
+      if (query && name.includes(query)) {
+        layer.setStyle({
+          color: HIGHLIGHT_STROKE_COLOR,
+          weight: HIGHLIGHT_STROKE_WEIGHT
+        });
+        if (layer.bringToFront) {
+          layer.bringToFront();
+        }
+      } else {
+        layer.setStyle({
+          color: NORMAL_STROKE_COLOR,
+          weight: NORMAL_STROKE_WEIGHT
+        });
+      }
+    }
+
+    function applySearchHighlight() {
+      barrioLayers.forEach(function(layer) {
+        applySearchHighlightForLayer(layer);
+      });
+    }
+
     if (window.location.protocol === 'file:') {
       customAlert(
         'Cette carte a besoin d\'un petit serveur local pour lire cartagena_barrios.geojson.\n' +
@@ -1014,12 +1158,12 @@
             onEachFeature: onEachDistrict
           }).addTo(map);
 
-          const bounds = geoLayer.getBounds();
-          if (bounds.isValid()) {
-            map.fitBounds(bounds);
-          } else {
-            console.warn('GeoJSON ne contient aucun polygone; centrage par défaut conservé.');
-          }
+          // Ajuste le centrage sur l'enveloppe des barrios, en conservant un zoom rapproché
+          // Centre explicitement la carte sur les coordonnées souhaitées (vue par défaut)
+          map.setView([10.3856, -75.5186], 13);
+
+          updateDistrictLabelVisibility();
+          map.on('zoomend', updateDistrictLabelVisibility);
 
           loadExistingColors().then(subscribeToRealtime);
         })
