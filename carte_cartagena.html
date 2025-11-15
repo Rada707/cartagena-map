@@ -38,11 +38,18 @@
       background: rgba(255, 255, 255, 0.95);
       border-radius: 999px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      padding: 6px 14px;
+      padding: 8px 18px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      z-index: 1000;
+      flex-wrap: wrap;
+    }
+
+    .tool-group {
       display: flex;
       gap: 8px;
       align-items: center;
-      z-index: 1000;
     }
 
     .tool-btn {
@@ -79,6 +86,14 @@
       cursor: pointer;
     }
 
+    .user-pill {
+      background: #f4f4f4;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
     .district-label {
       font-size: 11px;
       font-weight: bold;
@@ -91,17 +106,161 @@
       box-shadow: none;
       pointer-events: none;
     }
+
+    /* === Boîtes de dialogue modales === */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 0;
+      animation: fadeIn 0.2s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+      }
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateY(-20px) scale(0.95);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .modal-box {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      max-width: 500px;
+      width: 90%;
+      padding: 0;
+      animation: slideIn 0.3s ease-out forwards;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 24px 24px 16px 24px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .modal-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #212529;
+      margin: 0 0 8px 0;
+      text-align: center;
+    }
+
+    .modal-body {
+      padding: 20px 24px;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #495057;
+      white-space: pre-wrap;
+      text-align: center;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: inherit;
+      margin-top: 12px;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+    }
+
+    .modal-input:focus {
+      outline: none;
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+    }
+
+    .modal-footer {
+      padding: 16px 24px 24px 24px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .modal-btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 100px;
+    }
+
+    .modal-btn-primary {
+      background: #0d6efd;
+      color: white;
+    }
+
+    .modal-btn-primary:hover {
+      background: #0b5ed7;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    }
+
+    .modal-btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .modal-btn-secondary:hover {
+      background: #5c636a;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+    }
+
+    .modal-btn:active {
+      transform: translateY(0);
+    }
   </style>
 </head>
 <body>
   <div class="toolbar">
-    <button id="tool-select" class="tool-btn active" type="button" title="Mode normal (flèche)">↖</button>
-    <button id="tool-pen" class="tool-btn" type="button" title="Colorier un barrio">✏️</button>
-    <button id="tool-erase" class="tool-btn" type="button" title="Effacer la couleur">🧽</button>
+    <div class="tool-group">
+      <button id="tool-select" class="tool-btn active" type="button" title="Mode normal (flèche)">↖</button>
+      <button id="tool-pen" class="tool-btn" type="button" title="Colorier un barrio">✏️</button>
+      <button id="tool-erase" class="tool-btn" type="button" title="Effacer la couleur">🧽</button>
+    </div>
     <label class="color-picker-label" title="Choisir la couleur du stylo">
       Couleur
       <input id="color-picker" type="color" value="#ff6200" />
     </label>
+    <span class="user-pill" id="current-user">Utilisateur: …</span>
   </div>
   <div id="map"></div>
 
@@ -111,8 +270,169 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
+  <script src="supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
+    // === Fonctions pour les boîtes de dialogue modales personnalisées ===
+    
+    function customAlert(message, options = {}) {
+      return new Promise(function(resolve) {
+        const icon = options.icon || '💬';
+        const title = options.title || 'Information';
+        
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        
+        const modalBox = document.createElement('div');
+        modalBox.className = 'modal-box';
+        
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'modal-icon';
+        iconDiv.textContent = icon;
+        
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'modal-title';
+        titleDiv.textContent = title;
+        
+        const body = document.createElement('div');
+        body.className = 'modal-body';
+        body.textContent = message;
+        
+        const footer = document.createElement('div');
+        footer.className = 'modal-footer';
+        
+        const okBtn = document.createElement('button');
+        okBtn.className = 'modal-btn modal-btn-primary';
+        okBtn.textContent = 'OK';
+        
+        function closeModal() {
+          overlay.style.animation = 'fadeOut 0.2s ease-out forwards';
+          setTimeout(function() {
+            if (overlay.parentNode) {
+              overlay.parentNode.removeChild(overlay);
+            }
+            resolve();
+          }, 200);
+        }
+        
+        okBtn.addEventListener('click', closeModal);
+        overlay.addEventListener('click', function(e) {
+          if (e.target === overlay) {
+            closeModal();
+          }
+        });
+        
+        footer.appendChild(okBtn);
+        header.appendChild(iconDiv);
+        header.appendChild(titleDiv);
+        modalBox.appendChild(header);
+        modalBox.appendChild(body);
+        modalBox.appendChild(footer);
+        overlay.appendChild(modalBox);
+        document.body.appendChild(overlay);
+        
+        setTimeout(function() {
+          okBtn.focus();
+        }, 100);
+      });
+    }
+    
+    function customPrompt(message, defaultValue = '', options = {}) {
+      return new Promise(function(resolve) {
+        const icon = options.icon || '✏️';
+        const title = options.title || 'Saisie requise';
+        
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        
+        const modalBox = document.createElement('div');
+        modalBox.className = 'modal-box';
+        
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'modal-icon';
+        iconDiv.textContent = icon;
+        
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'modal-title';
+        titleDiv.textContent = title;
+        
+        const body = document.createElement('div');
+        body.className = 'modal-body';
+        body.textContent = message;
+        
+        const input = document.createElement('input');
+        input.className = 'modal-input';
+        input.type = 'text';
+        input.value = defaultValue;
+        input.placeholder = defaultValue;
+        
+        body.appendChild(input);
+        
+        const footer = document.createElement('div');
+        footer.className = 'modal-footer';
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'modal-btn modal-btn-secondary';
+        cancelBtn.textContent = 'Annuler';
+        
+        const okBtn = document.createElement('button');
+        okBtn.className = 'modal-btn modal-btn-primary';
+        okBtn.textContent = 'OK';
+        
+        function closeModal(value) {
+          overlay.style.animation = 'fadeOut 0.2s ease-out forwards';
+          setTimeout(function() {
+            if (overlay.parentNode) {
+              overlay.parentNode.removeChild(overlay);
+            }
+            resolve(value);
+          }, 200);
+        }
+        
+        okBtn.addEventListener('click', function() {
+          closeModal(input.value || defaultValue);
+        });
+        
+        cancelBtn.addEventListener('click', function() {
+          closeModal(null);
+        });
+        
+        input.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            closeModal(input.value || defaultValue);
+          }
+        });
+        
+        overlay.addEventListener('click', function(e) {
+          if (e.target === overlay) {
+            closeModal(null);
+          }
+        });
+        
+        footer.appendChild(cancelBtn);
+        footer.appendChild(okBtn);
+        header.appendChild(iconDiv);
+        header.appendChild(titleDiv);
+        modalBox.appendChild(header);
+        modalBox.appendChild(body);
+        modalBox.appendChild(footer);
+        overlay.appendChild(modalBox);
+        document.body.appendChild(overlay);
+        
+        setTimeout(function() {
+          input.select();
+          input.focus();
+        }, 100);
+      });
+    }
+    
     // 1. Initialisation de la carte centrée sur Carthagène
     const map = L.map('map').setView([10.3997, -75.5144], 12);
 
@@ -126,48 +446,54 @@
     const DEFAULT_FILL_COLOR = '#4da6ff';
     const DEFAULT_FILL_OPACITY = 0.25;
 
-    function districtStyle(feature) {
+    function districtStyle() {
       return {
-        color: '#003366',      // contour
-        weight: 1.5,           // épaisseur du contour
-        fillColor: DEFAULT_FILL_COLOR,  // couleur de remplissage
+        color: '#003366',
+        weight: 1.5,
+        fillColor: DEFAULT_FILL_COLOR,
         fillOpacity: DEFAULT_FILL_OPACITY
       };
     }
 
-    // 4. Pour chaque polygone: ajout du label permanent
-    function onEachDistrict(feature, layer) {
-      // ADAPTE ICI le nom du champ en fonction de ton GeoJSON :
-      // ex: 'NOMBRE', 'BARRIO', 'NOMBRE_BARRIO', etc.
-      const props = feature.properties || {};
-      const name =
-        props.NOMBRE ||
-        props.BARRIO ||
-        props.NOMBRE_BARRIO ||
-        props.NOM ||
-        'Sans nom';
-
-      // Label permanent au centre du polygone
-      layer.bindTooltip(name, {
-        permanent: true,
-        direction: 'center',
-        className: 'district-label'
-      });
-
-      // Optionnel: popup au clic avec plus d'infos
-      layer.bindPopup('<strong>' + name + '</strong>');
-
-      layer.on('click', function(e) {
-        handleFeatureInteraction(e.target);
-      });
-    }
-
-    // 5. Chargement du GeoJSON local
-    // Place un fichier "cartagena_barrios.geojson" à côté de cette page HTML
+    // === Sélection des outils & couleur ===
     const toolSelectButton = document.getElementById('tool-select');
     const toolPenButton = document.getElementById('tool-pen');
     const toolEraseButton = document.getElementById('tool-erase');
     const colorPicker = document.getElementById('color-picker');
+    const currentUserLabel = document.getElementById('current-user');
+
+    let currentUser = 'Anonyme';
+    customPrompt(
+      'Entrez votre prénom pour collaborer (visible par les autres):',
+      'Anonyme',
+      { icon: '👤', title: 'Bienvenue !' }
+    ).then(function(value) {
+      currentUser = value || 'Anonyme';
+      currentUserLabel.textContent = 'Utilisateur: ' + currentUser;
+    });
+
+    // === Configuration Supabase (remplacer les placeholders) ===
+    const supabaseSettings = window.__SUPABASE_CONFIG || {};
+    const SUPABASE_URL = supabaseSettings.url;
+    const SUPABASE_ANON_KEY = supabaseSettings.anonKey;
+    const supabaseReady =
+      typeof window.supabase !== 'undefined' &&
+      typeof SUPABASE_URL === 'string' &&
+      SUPABASE_URL.length > 0 &&
+      typeof SUPABASE_ANON_KEY === 'string' &&
+      SUPABASE_ANON_KEY.length > 0;
+    const supabaseClient = supabaseReady
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
+    if (!supabaseReady) {
+      console.warn(
+        'Supabase n’est pas configuré. Vérifiez supabase-config.js (généré à partir du fichier .env).'
+      );
+    }
+
+    const barrioLayers = new Map();
+    const colorState = new Map();
 
     let currentMode = 'select';
     let currentColor = colorPicker.value;
@@ -197,30 +523,202 @@
       currentColor = e.target.value;
     });
 
-    function handleFeatureInteraction(layer) {
+    // 4. Pour chaque polygone: ajout du label permanent et enregistrement
+    function onEachDistrict(feature, layer) {
+      const props = feature.properties || {};
+      const name =
+        props.NOMBRE ||
+        props.BARRIO ||
+        props.NOMBRE_BARRIO ||
+        props.NOM ||
+        'Sans nom';
+
+      layer.feature.properties.__displayName = name;
+
+      layer.bindTooltip(name, {
+        permanent: true,
+        direction: 'center',
+        className: 'district-label'
+      });
+
+      const code =
+        props.CODIGO ||
+        props.COD_BARRIO ||
+        props.ID ||
+        props.FID ||
+        feature.id ||
+        null;
+      layer.feature.properties.__barrioCode = code;
+      updatePopupContent(layer);
+
+      if (code) {
+        barrioLayers.set(code, layer);
+        const existing = colorState.get(code);
+        if (existing) {
+          applyColorRecordToLayer(existing, layer);
+        }
+      }
+
+      layer.on('click', function(e) {
+        handleFeatureInteraction(e.target);
+      });
+    }
+
+    async function handleFeatureInteraction(layer) {
       if (currentMode === 'pen') {
-        layer.setStyle({
-          fillColor: currentColor,
-          fillOpacity: 0.6
-        });
-        layer.feature.properties.__customColor = currentColor;
+        await saveColorChange(layer, currentColor);
       } else if (currentMode === 'erase') {
-        layer.setStyle({
-          fillColor: DEFAULT_FILL_COLOR,
-          fillOpacity: DEFAULT_FILL_OPACITY
-        });
-        delete layer.feature.properties.__customColor;
+        await eraseColor(layer);
       } else {
         layer.openPopup();
       }
     }
 
+    function updatePopupContent(layer) {
+      const name = layer.feature.properties.__displayName || 'Sans nom';
+      const lastUser = layer.feature.properties.__lastUser;
+      const color = layer.feature.properties.__customColor;
+      let extraInfo = '';
+      if (lastUser) {
+        extraInfo = color
+          ? '<br/><small>Colorié par ' + lastUser + '</small>'
+          : '<br/><small>Effacé par ' + lastUser + '</small>';
+      }
+      layer.bindPopup('<strong>' + name + '</strong>' + extraInfo);
+    }
+
+    function applyColorRecordToLayer(record, layer, userOverride) {
+      if (!layer) return;
+      if (record && record.color) {
+        layer.setStyle({
+          fillColor: record.color,
+          fillOpacity: 0.6
+        });
+        layer.feature.properties.__customColor = record.color;
+      } else {
+        layer.setStyle({
+          fillColor: DEFAULT_FILL_COLOR,
+          fillOpacity: DEFAULT_FILL_OPACITY
+        });
+        delete layer.feature.properties.__customColor;
+      }
+      layer.feature.properties.__lastUser =
+        typeof userOverride !== 'undefined' ? userOverride : record ? record.user_name : null;
+      updatePopupContent(layer);
+    }
+
+    async function saveColorChange(layer, color) {
+      const code = layer.feature.properties.__barrioCode;
+      if (!code) {
+        console.warn('Impossible de sauvegarder: code barrio manquant');
+        return;
+      }
+      const record = {
+        barrio_code: code,
+        color: color,
+        user_name: currentUser
+      };
+
+      colorState.set(code, record);
+      applyColorRecordToLayer(record, layer);
+
+      if (!supabaseReady) {
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from('barrio_colors')
+        .upsert(record, { onConflict: 'barrio_code' });
+      if (error) {
+        console.error('Erreur Supabase (upsert):', error);
+        customAlert(
+          'Impossible de sauvegarder la couleur: ' + error.message,
+          { icon: '⚠️', title: 'Erreur de sauvegarde' }
+        );
+      }
+    }
+
+    async function eraseColor(layer) {
+      const code = layer.feature.properties.__barrioCode;
+      if (!code) {
+        console.warn('Impossible de supprimer: code barrio manquant');
+        return;
+      }
+
+      colorState.delete(code);
+      applyColorRecordToLayer(null, layer, currentUser);
+
+      if (!supabaseReady) {
+        return;
+      }
+
+      const { error } = await supabaseClient.from('barrio_colors').delete().eq('barrio_code', code);
+      if (error) {
+        console.error('Erreur Supabase (delete):', error);
+        customAlert(
+          'Impossible de supprimer la couleur: ' + error.message,
+          { icon: '⚠️', title: 'Erreur de suppression' }
+        );
+      }
+    }
+
+    async function loadExistingColors() {
+      if (!supabaseReady) return;
+      const { data, error } = await supabaseClient
+        .from('barrio_colors')
+        .select('barrio_code,color,user_name');
+      if (error) {
+        console.error('Erreur Supabase (select):', error);
+        return;
+      }
+      data.forEach(function(record) {
+        colorState.set(record.barrio_code, record);
+        const layer = barrioLayers.get(record.barrio_code);
+        if (layer) {
+          applyColorRecordToLayer(record, layer);
+        }
+      });
+    }
+
+    function subscribeToRealtime() {
+      if (!supabaseReady) return;
+      supabaseClient
+        .channel('public:barrio_colors')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'barrio_colors' },
+          function(payload) {
+            if (payload.eventType === 'DELETE') {
+              const code = payload.old?.barrio_code;
+              colorState.delete(code);
+              const layer = barrioLayers.get(code);
+              if (layer) {
+                applyColorRecordToLayer(null, layer, payload.old?.user_name || null);
+              }
+            } else if (payload.new) {
+              const record = payload.new;
+              colorState.set(record.barrio_code, record);
+              const layer = barrioLayers.get(record.barrio_code);
+              if (layer) {
+                applyColorRecordToLayer(record, layer);
+              }
+            }
+          }
+        )
+        .subscribe(function(status) {
+          if (status === 'SUBSCRIBED') {
+            console.info('Connecté au flux temps réel Supabase.');
+          }
+        });
+    }
+
     if (window.location.protocol === 'file:') {
-      alert(
-        'Cette carte a besoin d’un petit serveur local pour lire cartagena_barrios.geojson.\n' +
+      customAlert(
+        'Cette carte a besoin d\'un petit serveur local pour lire cartagena_barrios.geojson.\n' +
         'Depuis C:\\Development\\Cartagena lancez par exemple:\n' +
         '   python -m http.server 8000\n' +
-        'Puis ouvrez http://localhost:8000/carte_cartagena.html'
+        'Puis ouvrez http://localhost:8000/carte_cartagena.html',
+        { icon: '🌐', title: 'Serveur local requis' }
       );
     } else {
       fetch('cartagena_barrios.geojson')
@@ -236,17 +734,21 @@
             onEachFeature: onEachDistrict
           }).addTo(map);
 
-          // Adapter le zoom pour englober tous les arrondissements
           const bounds = geoLayer.getBounds();
           if (bounds.isValid()) {
             map.fitBounds(bounds);
           } else {
             console.warn('GeoJSON ne contient aucun polygone; centrage par défaut conservé.');
           }
+
+          loadExistingColors().then(subscribeToRealtime);
         })
         .catch(function(error) {
           console.error(error);
-          alert('Erreur en chargeant le fichier GeoJSON des arrondissements.');
+          customAlert(
+            'Erreur en chargeant le fichier GeoJSON des arrondissements.',
+            { icon: '❌', title: 'Erreur de chargement' }
+          );
         });
     }
   </script>
