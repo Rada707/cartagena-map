@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Carte des arrondissements de Carthagène (Colombie)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      position: relative;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    #map {
+      width: 100%;
+      height: 100vh;
+    }
+
+    .toolbar {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 999px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      padding: 6px 14px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .tool-btn {
+      border: none;
+      background: #f0f0f0;
+      border-radius: 50%;
+      width: 38px;
+      height: 38px;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+
+    .tool-btn.active {
+      background: #0d6efd;
+      color: #fff;
+      box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.3);
+    }
+
+    .color-picker-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .color-picker-label input {
+      width: 40px;
+      height: 28px;
+      border: none;
+      padding: 0;
+      background: none;
+      cursor: pointer;
+    }
+
+    .district-label {
+      font-size: 11px;
+      font-weight: bold;
+      color: #202020;
+      text-shadow:
+        1px 1px 2px #ffffff,
+        -1px -1px 2px #ffffff;
+      border: none;
+      background: transparent;
+      box-shadow: none;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button id="tool-select" class="tool-btn active" type="button" title="Mode normal (flèche)">↖</button>
+    <button id="tool-pen" class="tool-btn" type="button" title="Colorier un barrio">✏️</button>
+    <button id="tool-erase" class="tool-btn" type="button" title="Effacer la couleur">🧽</button>
+    <label class="color-picker-label" title="Choisir la couleur du stylo">
+      Couleur
+      <input id="color-picker" type="color" value="#ff6200" />
+    </label>
+  </div>
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <script>
+    // 1. Initialisation de la carte centrée sur Carthagène
+    const map = L.map('map').setView([10.3997, -75.5144], 12);
+
+    // 2. Fond de carte OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // 3. Style des arrondissements
+    const DEFAULT_FILL_COLOR = '#4da6ff';
+    const DEFAULT_FILL_OPACITY = 0.25;
+
+    function districtStyle(feature) {
+      return {
+        color: '#003366',      // contour
+        weight: 1.5,           // épaisseur du contour
+        fillColor: DEFAULT_FILL_COLOR,  // couleur de remplissage
+        fillOpacity: DEFAULT_FILL_OPACITY
+      };
+    }
+
+    // 4. Pour chaque polygone: ajout du label permanent
+    function onEachDistrict(feature, layer) {
+      // ADAPTE ICI le nom du champ en fonction de ton GeoJSON :
+      // ex: 'NOMBRE', 'BARRIO', 'NOMBRE_BARRIO', etc.
+      const props = feature.properties || {};
+      const name =
+        props.NOMBRE ||
+        props.BARRIO ||
+        props.NOMBRE_BARRIO ||
+        props.NOM ||
+        'Sans nom';
+
+      // Label permanent au centre du polygone
+      layer.bindTooltip(name, {
+        permanent: true,
+        direction: 'center',
+        className: 'district-label'
+      });
+
+      // Optionnel: popup au clic avec plus d'infos
+      layer.bindPopup('<strong>' + name + '</strong>');
+
+      layer.on('click', function(e) {
+        handleFeatureInteraction(e.target);
+      });
+    }
+
+    // 5. Chargement du GeoJSON local
+    // Place un fichier "cartagena_barrios.geojson" à côté de cette page HTML
+    const toolSelectButton = document.getElementById('tool-select');
+    const toolPenButton = document.getElementById('tool-pen');
+    const toolEraseButton = document.getElementById('tool-erase');
+    const colorPicker = document.getElementById('color-picker');
+
+    let currentMode = 'select';
+    let currentColor = colorPicker.value;
+
+    function setMode(mode) {
+      currentMode = mode;
+      [toolSelectButton, toolPenButton, toolEraseButton].forEach(function(btn) {
+        const btnMode = btn.dataset.mode || btn.id.replace('tool-', '');
+        btn.classList.toggle('active', btnMode === mode);
+      });
+    }
+
+    toolSelectButton.dataset.mode = 'select';
+    toolPenButton.dataset.mode = 'pen';
+    toolEraseButton.dataset.mode = 'erase';
+
+    toolSelectButton.addEventListener('click', function() {
+      setMode('select');
+    });
+    toolPenButton.addEventListener('click', function() {
+      setMode('pen');
+    });
+    toolEraseButton.addEventListener('click', function() {
+      setMode('erase');
+    });
+    colorPicker.addEventListener('input', function(e) {
+      currentColor = e.target.value;
+    });
+
+    function handleFeatureInteraction(layer) {
+      if (currentMode === 'pen') {
+        layer.setStyle({
+          fillColor: currentColor,
+          fillOpacity: 0.6
+        });
+        layer.feature.properties.__customColor = currentColor;
+      } else if (currentMode === 'erase') {
+        layer.setStyle({
+          fillColor: DEFAULT_FILL_COLOR,
+          fillOpacity: DEFAULT_FILL_OPACITY
+        });
+        delete layer.feature.properties.__customColor;
+      } else {
+        layer.openPopup();
+      }
+    }
+
+    if (window.location.protocol === 'file:') {
+      alert(
+        'Cette carte a besoin d’un petit serveur local pour lire cartagena_barrios.geojson.\n' +
+        'Depuis C:\\Development\\Cartagena lancez par exemple:\n' +
+        '   python -m http.server 8000\n' +
+        'Puis ouvrez http://localhost:8000/carte_cartagena.html'
+      );
+    } else {
+      fetch('cartagena_barrios.geojson')
+        .then(function(response) {
+          if (!response.ok) {
+            throw new Error('Impossible de charger cartagena_barrios.geojson');
+          }
+          return response.json();
+        })
+        .then(function(data) {
+          const geoLayer = L.geoJSON(data, {
+            style: districtStyle,
+            onEachFeature: onEachDistrict
+          }).addTo(map);
+
+          // Adapter le zoom pour englober tous les arrondissements
+          const bounds = geoLayer.getBounds();
+          if (bounds.isValid()) {
+            map.fitBounds(bounds);
+          } else {
+            console.warn('GeoJSON ne contient aucun polygone; centrage par défaut conservé.');
+          }
+        })
+        .catch(function(error) {
+          console.error(error);
+          alert('Erreur en chargeant le fichier GeoJSON des arrondissements.');
+        });
+    }
+  </script>
+</body>
+</html>
