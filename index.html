@@ -44,6 +44,8 @@
       align-items: center;
       z-index: 1000;
       flex-wrap: wrap;
+      max-width: min(480px, 94vw);
+      box-sizing: border-box;
     }
 
     .tool-group {
@@ -109,6 +111,149 @@
       font-size: 13px;
       background: #ffffff;
       cursor: pointer;
+    }
+
+    /* === Ajustements mobiles === */
+    @media (max-width: 600px) {
+      .toolbar {
+        top: 10px;
+        left: 56px; /* À droite des boutons +/- de Leaflet (largeur 34px + marge) */
+        right: 8px;
+        transform: none;
+        border-radius: 12px;
+        padding: 8px 10px;
+        gap: 8px;
+        font-size: 12px;
+        max-width: none;
+        width: auto;
+      }
+
+      .tool-group {
+        flex: 1 1 auto;
+        justify-content: flex-start;
+        gap: 6px;
+      }
+
+      .tool-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+
+      .color-picker-label {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        font-size: 12px;
+        gap: 4px;
+      }
+      
+      .color-picker-label span {
+        display: none;
+      }
+
+      .color-picker-label input {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+      }
+
+      .lang-picker {
+        flex: 0 0 auto;
+        font-size: 12px;
+      }
+      
+      .lang-picker label {
+        display: none;
+      }
+
+      .lang-picker select {
+        padding: 8px 6px;
+        font-size: 12px;
+        min-width: 70px;
+        max-width: 85px;
+      }
+
+      .user-pill {
+        flex: 0 0 100%;
+        font-size: 12px;
+        padding: 6px 10px;
+        text-align: center;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+      
+      .modal-box {
+        width: 95%;
+        max-width: 400px;
+      }
+      
+      .modal-header {
+        padding: 20px 16px 12px 16px;
+      }
+      
+      .modal-icon {
+        font-size: 40px;
+        margin-bottom: 8px;
+      }
+      
+      .modal-title {
+        font-size: 18px;
+      }
+      
+      .modal-body {
+        padding: 16px;
+        font-size: 14px;
+      }
+      
+      .modal-footer {
+        padding: 12px 16px 20px 16px;
+        flex-direction: column;
+      }
+      
+      .modal-btn {
+        width: 100%;
+        min-width: auto;
+      }
+      
+      .district-label {
+        font-size: 9px;
+      }
+    }
+    
+    /* Pour les très petits écrans */
+    @media (max-width: 360px) {
+      .toolbar {
+        left: 50px;
+        right: 6px;
+        padding: 6px 8px;
+        gap: 6px;
+      }
+      
+      .tool-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+      }
+      
+      .color-picker-label input {
+        width: 36px;
+        height: 36px;
+      }
+      
+      .lang-picker select {
+        min-width: 60px;
+        max-width: 75px;
+        font-size: 11px;
+      }
+      
+      .user-pill {
+        font-size: 11px;
+        padding: 5px 8px;
+      }
     }
 
     .district-label {
@@ -270,7 +415,7 @@
 <body>
   <div class="toolbar">
     <div class="tool-group">
-      <button id="tool-select" class="tool-btn active" type="button" title="Mode normal (flèche)">↖</button>
+      <button id="tool-select" class="tool-btn active" type="button" title="Mode normal (curseur)">👆</button>
       <button id="tool-pen" class="tool-btn" type="button" title="Colorier un barrio">✏️</button>
       <button id="tool-erase" class="tool-btn" type="button" title="Effacer la couleur">🧽</button>
     </div>
@@ -306,9 +451,9 @@
     const translations = {
       fr: {
         page_title: 'Carte des arrondissements de Carthagène (Colombie)',
-        tool_select_title: 'Mode normal (flèche)',
+        tool_select_title: 'Mode normal (curseur)',
         tool_pen_title: 'Colorier un barrio',
-        tool_erase_title: 'Effacer la couleur',
+        tool_erase_title: 'Effacer la couleur (gomme)',
         color_label: 'Couleur',
         color_picker_title: 'Choisir la couleur du stylo',
         lang_label: 'Langue',
@@ -321,9 +466,9 @@
       },
       es: {
         page_title: 'Mapa de los barrios de Cartagena (Colombia)',
-        tool_select_title: 'Modo normal (flecha)',
+        tool_select_title: 'Modo normal (cursor)',
         tool_pen_title: 'Colorear un barrio',
-        tool_erase_title: 'Borrar el color',
+        tool_erase_title: 'Borrar el color (goma)',
         color_label: 'Color',
         color_picker_title: 'Elegir el color del lápiz',
         lang_label: 'Idioma',
