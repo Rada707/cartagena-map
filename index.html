@@ -94,6 +94,23 @@
       font-weight: 600;
     }
 
+    .lang-picker {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .lang-picker select {
+      border-radius: 999px;
+      border: 1px solid #ced4da;
+      padding: 4px 8px;
+      font-size: 13px;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
     .district-label {
       font-size: 11px;
       font-weight: bold;
@@ -258,10 +275,20 @@
       <button id="tool-erase" class="tool-btn" type="button" title="Effacer la couleur">🧽</button>
     </div>
     <label class="color-picker-label" title="Choisir la couleur du stylo">
-      Couleur
+      <span data-i18n="color_label">Couleur</span>
       <input id="color-picker" type="color" value="#ff6200" />
     </label>
-    <span class="user-pill" id="current-user">Utilisateur: …</span>
+    <div class="lang-picker">
+      <label for="lang-select" data-i18n="lang_label">Langue</label>
+      <select id="lang-select">
+        <option value="fr">Français</option>
+        <option value="es">Español</option>
+      </select>
+    </div>
+    <span class="user-pill">
+      <span id="current-user-label" data-i18n="current_user_prefix">Utilisateur:</span>
+      <span id="current-user-name"> …</span>
+    </span>
   </div>
   <div id="map"></div>
 
@@ -275,6 +302,106 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
+    // === Internationalisation (FR / ES) ===
+    const translations = {
+      fr: {
+        page_title: 'Carte des arrondissements de Carthagène (Colombie)',
+        tool_select_title: 'Mode normal (flèche)',
+        tool_pen_title: 'Colorier un barrio',
+        tool_erase_title: 'Effacer la couleur',
+        color_label: 'Couleur',
+        color_picker_title: 'Choisir la couleur du stylo',
+        lang_label: 'Langue',
+        current_user_prefix: 'Utilisateur :',
+        prompt_title: 'Bienvenue !',
+        prompt_message: 'Entrez votre prénom pour collaborer (visible par les autres) :',
+        prompt_default: 'Anonyme',
+        modal_ok: 'OK',
+        modal_cancel: 'Annuler'
+      },
+      es: {
+        page_title: 'Mapa de los barrios de Cartagena (Colombia)',
+        tool_select_title: 'Modo normal (flecha)',
+        tool_pen_title: 'Colorear un barrio',
+        tool_erase_title: 'Borrar el color',
+        color_label: 'Color',
+        color_picker_title: 'Elegir el color del lápiz',
+        lang_label: 'Idioma',
+        current_user_prefix: 'Usuario :',
+        prompt_title: '¡Bienvenido!',
+        prompt_message: 'Introduce tu nombre para colaborar (visible para los demás):',
+        prompt_default: 'Anónimo',
+        modal_ok: 'OK',
+        modal_cancel: 'Cancelar'
+      }
+    };
+
+    const supportedLangs = ['fr', 'es'];
+
+    function detectInitialLang() {
+      const saved = localStorage.getItem('lang');
+      if (saved && supportedLangs.includes(saved)) return saved;
+
+      const browserLang =
+        (navigator.languages && navigator.languages[0]) ||
+        navigator.language ||
+        'fr';
+      const short = browserLang.slice(0, 2).toLowerCase();
+      return supportedLangs.includes(short) ? short : 'fr';
+    }
+
+    let currentLang = detectInitialLang();
+
+    function t(key) {
+      const dict = translations[currentLang] || translations.fr;
+      return (dict && dict[key]) || translations.fr[key] || key;
+    }
+
+    function applyTranslations() {
+      document.documentElement.lang = currentLang;
+      document.title = t('page_title');
+
+      document.querySelectorAll('[data-i18n]').forEach(function(el) {
+        const key = el.getAttribute('data-i18n');
+        const text = t(key);
+        if (text) {
+          el.textContent = text;
+        }
+      });
+
+      const selectBtn = document.getElementById('tool-select');
+      const penBtn = document.getElementById('tool-pen');
+      const eraseBtn = document.getElementById('tool-erase');
+      const colorLabel = document.querySelector('.color-picker-label');
+
+      if (selectBtn) selectBtn.title = t('tool_select_title');
+      if (penBtn) penBtn.title = t('tool_pen_title');
+      if (eraseBtn) eraseBtn.title = t('tool_erase_title');
+      if (colorLabel) colorLabel.title = t('color_picker_title');
+
+      const langSelect = document.getElementById('lang-select');
+      if (langSelect && langSelect.value !== currentLang) {
+        langSelect.value = currentLang;
+      }
+    }
+
+    function initLanguageSelector() {
+      const langSelect = document.getElementById('lang-select');
+      if (!langSelect) return;
+      langSelect.addEventListener('change', function() {
+        const value = langSelect.value;
+        if (!supportedLangs.includes(value)) return;
+        currentLang = value;
+        localStorage.setItem('lang', value);
+        applyTranslations();
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      applyTranslations();
+      initLanguageSelector();
+    });
+
     // === Fonctions pour les boîtes de dialogue modales personnalisées ===
     
     function customAlert(message, options = {}) {
@@ -308,7 +435,7 @@
         
         const okBtn = document.createElement('button');
         okBtn.className = 'modal-btn modal-btn-primary';
-        okBtn.textContent = 'OK';
+        okBtn.textContent = t('modal_ok');
         
         function closeModal() {
           overlay.style.animation = 'fadeOut 0.2s ease-out forwards';
@@ -381,11 +508,11 @@
         
         const cancelBtn = document.createElement('button');
         cancelBtn.className = 'modal-btn modal-btn-secondary';
-        cancelBtn.textContent = 'Annuler';
+        cancelBtn.textContent = t('modal_cancel');
         
         const okBtn = document.createElement('button');
         okBtn.className = 'modal-btn modal-btn-primary';
-        okBtn.textContent = 'OK';
+        okBtn.textContent = t('modal_ok');
         
         function closeModal(value) {
           overlay.style.animation = 'fadeOut 0.2s ease-out forwards';
@@ -461,16 +588,23 @@
     const toolPenButton = document.getElementById('tool-pen');
     const toolEraseButton = document.getElementById('tool-erase');
     const colorPicker = document.getElementById('color-picker');
-    const currentUserLabel = document.getElementById('current-user');
+    const currentUserLabel = document.getElementById('current-user-label');
+    const currentUserName = document.getElementById('current-user-name');
 
-    let currentUser = 'Anonyme';
+    let currentUser = translations[currentLang].prompt_default;
     customPrompt(
-      'Entrez votre prénom pour collaborer (visible par les autres):',
-      'Anonyme',
-      { icon: '👤', title: 'Bienvenue !' }
+      t('prompt_message'),
+      t('prompt_default'),
+      { icon: '👤', title: t('prompt_title') }
     ).then(function(value) {
-      currentUser = value || 'Anonyme';
-      currentUserLabel.textContent = 'Utilisateur: ' + currentUser;
+      currentUser = value || t('prompt_default');
+      if (currentUserName) {
+        currentUserName.textContent = ' ' + currentUser;
+      }
+      if (currentUserLabel) {
+        currentUserLabel.textContent = t('current_user_prefix');
+      }
+      applyTranslations();
     });
 
     // === Configuration Supabase (remplacer les placeholders) ===
